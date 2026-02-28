@@ -3,53 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Number Details Lookup</title>
+    <title>Mobile Number Details</title>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
-        input, button { padding: 10px; font-size: 16px; width: 100%; margin-top: 10px; }
-        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; }
-        .error { color: red; border-color: red; }
-        .loading { color: #555; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border 0.3s;
+            min-width: 250px;
+        }
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        button {
+            padding: 12px 25px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #555;
+            margin: 40px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        th {
+            background: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .meta-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>📞 Enter Number for Details</h1>
-    <input type="text" id="phoneNumber" placeholder="e.g., 9876543210" />
-    <button id="submitBtn">Get Details</button>
-    <div id="result">Output will appear here...</div>
+    <h1>📱 Mobile Number Details Lookup</h1>
+    
+    <div class="search-box">
+        <input type="text" id="numberInput" placeholder="Enter mobile number (e.g., 7905063730)" />
+        <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="resultArea"></div>
 
     <script>
-        const btn = document.getElementById('submitBtn');
-        const input = document.getElementById('phoneNumber');
-        const resultDiv = document.getElementById('result');
+        const numberInput = document.getElementById('numberInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const resultArea = document.getElementById('resultArea');
 
-        btn.addEventListener('click', async () => {
-            const number = input.value.trim();
+        searchBtn.addEventListener('click', async () => {
+            const number = numberInput.value.trim();
             if (!number) {
-                resultDiv.innerHTML = '<span class="error">Please enter a number.</span>';
+                showError('Please enter a number');
                 return;
             }
 
-            resultDiv.innerHTML = '<span class="loading">Loading...</span>';
-            resultDiv.className = '';
+            // Show loading
+            searchBtn.disabled = true;
+            resultArea.innerHTML = '<div class="loading">🔍 Searching...</div>';
 
             try {
-                // 1. Call YOUR backend (which will then call the real API)
                 const response = await fetch(`/api/get-details?number=${encodeURIComponent(number)}`);
                 const data = await response.json();
 
-                // 2. Check for errors from your backend/API
                 if (!response.ok) {
-                    throw new Error(data.error || `HTTP error ${response.status}`);
+                    // Show error from backend
+                    showError(data.error || 'Request failed', data.details);
+                    return;
                 }
 
-                // 3. Display the successful result
-                resultDiv.innerHTML = `<strong>✅ Result:</strong><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
-                resultDiv.className = '';
+                // Check if API returned success status
+                if (data.status !== 'success' || !data.results || data.results.length === 0) {
+                    showError('No details found for this number');
+                    return;
+                }
 
-            } catch (error) {
-                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
-                resultDiv.className = 'error';
+                displayResults(data);
+
+            } catch (err) {
+                showError('Network error: ' + err.message);
+            } finally {
+                searchBtn.disabled = false;
+            }
+        });
+
+        function showError(message, details = null) {
+            let html = `<div class="error">❌ ${message}`;
+            if (details) {
+                html += `<br><small>${details}</small>`;
+            }
+            html += '</div>';
+            resultArea.innerHTML = html;
+        }
+
+        function displayResults(data) {
+            const results = data.results;
+            const searchTime = data.search_time;
+
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Father's Name</th>
+                            <th>Address</th>
+                            <th>Alternate Mobile</th>
+                            <th>Circle</th>
+                            <th>ID</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Use a Set to remove duplicates based on mobile + id (adjust as needed)
+            const uniqueResults = results.filter((item, index, self) =>
+                index === self.findIndex(r => r.id === item.id)
+            );
+
+            uniqueResults.forEach(item => {
+                tableHtml += `
+                    <tr>
+                        <td><strong>${item.name || '-'}</strong></td>
+                        <td>${item.fname || '-'}</td>
+                        <td>${item.address || '-'}</td>
+                        <td>${item.alt || '-'}</td>
+                        <td>${item.circle || '-'}</td>
+                        <td>${item.id || '-'}</td>
+                        <td>${item.email || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                    </tbody>
+                </table>
+                <div class="meta-info">
+                    ⏱️ Search time: ${searchTime} | 📊 ${uniqueResults.length} result(s) found
+                </div>
+            `;
+
+            resultArea.innerHTML = tableHtml;
+        }
+
+        // Allow Enter key to search
+        numberInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchBtn.click();
             }
         });
     </script>
