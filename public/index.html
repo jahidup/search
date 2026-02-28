@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Details Lookup</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+        input, button { padding: 10px; font-size: 16px; width: 100%; margin-top: 10px; }
+        #result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; }
+        .error { color: red; border-color: red; }
+        .loading { color: #555; }
+    </style>
+</head>
+<body>
+    <h1>📞 Enter Number for Details</h1>
+    <input type="text" id="phoneNumber" placeholder="e.g., 9876543210" />
+    <button id="submitBtn">Get Details</button>
+    <div id="result">Output will appear here...</div>
+
+    <script>
+        const btn = document.getElementById('submitBtn');
+        const input = document.getElementById('phoneNumber');
+        const resultDiv = document.getElementById('result');
+
+        btn.addEventListener('click', async () => {
+            const number = input.value.trim();
+            if (!number) {
+                resultDiv.innerHTML = '<span class="error">Please enter a number.</span>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<span class="loading">Loading...</span>';
+            resultDiv.className = '';
+
+            try {
+                // 1. Call YOUR backend (which will then call the real API)
+                const response = await fetch(`/api/get-details?number=${encodeURIComponent(number)}`);
+                const data = await response.json();
+
+                // 2. Check for errors from your backend/API
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error ${response.status}`);
+                }
+
+                // 3. Display the successful result
+                resultDiv.innerHTML = `<strong>✅ Result:</strong><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                resultDiv.className = '';
+
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                resultDiv.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>
